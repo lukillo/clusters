@@ -5,9 +5,12 @@ const numCPUs = require('os').cpus().length;
 if (cluster.isMaster) {
     console.log('This is a master process froking...');
     console.log(`This machine has ${numCPUs} cpu's`);
-    for (var i = 0; i < numCPUs; i++) {
-        console.log(`Forking process number: ${i}...`);
-        cluster.fork();
+    for (let i = 1; i <= numCPUs; i++) {
+        const worker = cluster.fork();
+        console.log(`Forking process id: ${worker.process.pid} number: ${i}...`);
+        worker.on('message', (msg)=> {
+          console.log(`Master ${process.pid} received message from worker: ${msg.msgFromWorker}`);
+        });
     }
       //on exit of cluster
     cluster.on('exit', (worker, code, signal) => {
@@ -21,16 +24,11 @@ if (cluster.isMaster) {
         console.log('worker success!');
       }
     });
-    cluster.on('message', (message) => {
-        console.log('message recieved in: ', message.process.pid);
-    });
 } else {
-    console.log('This is a worker process creating server...');
     http.createServer((req, res) => {
-        console.log('Server its OK');
         res.writeHead(200);
-        console.log('process ' + process.pid + ' says hello!');
-        process.send(process.pid);
-        res.end('process ' + process.pid + ' says hello!\n');
+        console.log(`process ${process.pid} says hello!'`);
+        process.send({msgFromWorker: `This is from worker ${process.pid}`})
+        res.end(`Process ${process.pid} says hello!\n`);
     }).listen(8000);
 }
